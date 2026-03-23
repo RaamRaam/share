@@ -4,8 +4,8 @@ SSO Login Test — Azure AD (password-less, reuses browser session/cookies)
 Flow:
     1. Open app URL
     2. Click the Login button on the app
-    3. Microsoft SSO account picker appears — click the pre-shown account
-    4. App loads — print the landing page URL
+    3. SSO opens in a popup/new tab — click the pre-shown account
+    4. Popup closes, app loads — print the landing page URL
 
 Usage:
     pip install playwright python-dotenv
@@ -26,6 +26,27 @@ SSO_EMAIL = os.getenv("SSO_EMAIL")
 
 CHROME_USER_DATA_DIR = str(Path.home() / "Library/Application Support/Microsoft Edge")
 CHROME_PROFILE = "Default"  # Change to "Profile 1", "Profile 2" etc. if needed
+
+
+def pick_account(sso_page, email: str) -> None:
+    """Click the matching account on the Microsoft 'Pick an account' page."""
+    selectors = [
+        f"[data-test-id='{email}']",
+        f"[data-username='{email}']",
+        f"div.tile:has-text('{email}')",
+        f"div[role='option']:has-text('{email}')",
+        f"small:has-text('{email}')",
+        f"p:has-text('{email}')",
+    ]
+    for selector in selectors:
+        loc = sso_page.locator(selector)
+        if loc.count() > 0:
+            print(f"    → matched with: {selector}")
+            loc.first.wait_for(state="visible", timeout=10_000)
+            loc.first.click()
+            return
+
+    raise Exception(f"Could not find account tile for {email} on Pick an account page")
 
 
 def test_sso_login() -> None:
@@ -51,49 +72,33 @@ def test_sso_login() -> None:
             print("\n[1] Navigating to app...")
             page.goto(APP_URL, wait_until="networkidle", timeout=60_000)
 
-            # Step 2: Click the Login button on the app
+            # Step 2: Click the Login button — SSO may open as popup or same tab
             print("[2] Clicking Login button...")
             login_button = page.locator("button:has-text('Login')")
             login_button.wait_for(state="visible", timeout=10_000)
-            login_button.click()
 
-            # Step 3: Wait for Microsoft SSO account picker
-            print("[3] Waiting for Microsoft SSO account picker...")
-            time.sleep(3)
+            # Listen for a popup BEFORE clicking
+            with context.expect_page(timeout=10_000) as new_page_info:
+                login_button.click()
 
-            if "login.microsoftonline.com" in page.url:
-                print(f"[4] Pick an account page detected — clicking {SSO_EMAIL}...")
+            sso_page = new_page_info.value
+            sso_page.wait_for_load_state("domcontentloaded")
+            print(f"[3] SSO opened in new tab — URL: {sso_page.url}")
 
-                # Microsoft "Pick an account" page — try selectors in order
-                selectors = [
-                    f"[data-test-id='{SSO_EMAIL}']",           # standard tile attribute
-                    f"[data-username='{SSO_EMAIL}']",           # alternative attribute
-                    f"div.tile:has-text('{SSO_EMAIL}')",        # tile class with email text
-                    f"div[role='option']:has-text('{SSO_EMAIL}')",  # ARIA option role
-                    f"small:has-text('{SSO_EMAIL}')",           # email shown in <small>
-                    f"p:has-text('{SSO_EMAIL}')",               # email shown in <p>
-                ]
+            # Step 3: Handle Pick an account page
+            if "login.microsoftonline.com" in sso_page.url or "login.live.com" in sso_page.url:
+                print(f"[4] Pick an account page detected — selecting {SSO_EMAIL}...")
+                pick_account(sso_page, SSO_EMAIL)
 
-                account = None
-                for selector in selectors:
-                    loc = page.locator(selector)
-                    if loc.count() > 0:
-                        account = loc.first
-                        print(f"    → matched with: {selector}")
-                        break
+                print("[5] Waiting for SSO to complete and app to load...")
+                # Wait for the popup to close after account selection
+                try:
+                    sso_page.wait_for_event("close", timeout=15_000)
+                    print("    → SSO popup closed.")
+                except Exception:
+                    print("    → SSO popup did not close; may have redirected.")
 
-                if account:
-                    account.wait_for(state="visible", timeout=10_000)
-                    account.click()
-                else:
-                    raise Exception(f"Could not find account tile for {SSO_EMAIL} on Pick an account page")
-
-                print("[5] Waiting for app to load after SSO...")
-                time.sleep(5)
-
-            else:
-                print("[4] SSO completed instantly (token silently reused).")
-                time.sleep(3)
+            time.sleep(3)  # allow app page to finish loading after SSO
 
             final_url = page.url
             print(f"\n[Result] Landed on  : {final_url}")
