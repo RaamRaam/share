@@ -1,15 +1,11 @@
 """
 SSO Login Test — Azure AD (password-less, reuses browser session/cookies)
 
-Uses the user's existing Edge profile so Microsoft SSO auto-authenticates
-without requiring a password.
-
 Flow:
     1. Open app URL
     2. Click the Login button on the app
-    3. Microsoft SSO page appears — enter email
-    4. SSO auto-authenticates (no password needed)
-    5. Print the landing page URL
+    3. Microsoft SSO account picker appears — click the pre-shown account
+    4. App loads — print the landing page URL
 
 Usage:
     pip install playwright python-dotenv
@@ -28,7 +24,6 @@ load_dotenv()
 APP_URL   = os.getenv("APP_URL")
 SSO_EMAIL = os.getenv("SSO_EMAIL")
 
-# Path to your Edge user profile (reuses existing Microsoft session/cookies)
 CHROME_USER_DATA_DIR = str(Path.home() / "Library/Application Support/Microsoft Edge")
 CHROME_PROFILE = "Default"  # Change to "Profile 1", "Profile 2" etc. if needed
 
@@ -56,31 +51,49 @@ def test_sso_login() -> None:
             print("\n[1] Navigating to app...")
             page.goto(APP_URL, wait_until="networkidle", timeout=60_000)
 
-            # Step 2: Click the Login button on the app's landing page
+            # Step 2: Click the Login button on the app
             print("[2] Clicking Login button...")
-            login_button = page.get_by_role("button", name="Login")
-            if not login_button.is_visible():
-                # Fallback — try link or any element with login text
-                login_button = page.get_by_role("link", name="Login")
+            login_button = page.locator("button:has-text('Login')")
+            login_button.wait_for(state="visible", timeout=10_000)
             login_button.click()
 
-            # Step 3: Wait for Microsoft SSO page to appear
-            print("[3] Waiting for Microsoft SSO page...")
+            # Step 3: Wait for Microsoft SSO account picker
+            print("[3] Waiting for Microsoft SSO account picker...")
             time.sleep(3)
 
-            if "login.microsoftonline.com" in page.url or "login.live.com" in page.url:
-                print("[4] Microsoft login page detected — entering email...")
-                email_input = page.get_by_placeholder("Email, phone, or Skype")
-                email_input.wait_for(state="visible", timeout=10_000)
-                email_input.fill(SSO_EMAIL)
-                page.get_by_role("button", name="Next").click()
-                print("[5] Waiting for SSO to auto-authenticate (no password needed)...")
-                time.sleep(5)  # allow time for SSO redirect chain to complete
+            if "login.microsoftonline.com" in page.url:
+                print(f"[4] Pick an account page detected — clicking {SSO_EMAIL}...")
+
+                # Microsoft "Pick an account" page — try selectors in order
+                selectors = [
+                    f"[data-test-id='{SSO_EMAIL}']",           # standard tile attribute
+                    f"[data-username='{SSO_EMAIL}']",           # alternative attribute
+                    f"div.tile:has-text('{SSO_EMAIL}')",        # tile class with email text
+                    f"div[role='option']:has-text('{SSO_EMAIL}')",  # ARIA option role
+                    f"small:has-text('{SSO_EMAIL}')",           # email shown in <small>
+                    f"p:has-text('{SSO_EMAIL}')",               # email shown in <p>
+                ]
+
+                account = None
+                for selector in selectors:
+                    loc = page.locator(selector)
+                    if loc.count() > 0:
+                        account = loc.first
+                        print(f"    → matched with: {selector}")
+                        break
+
+                if account:
+                    account.wait_for(state="visible", timeout=10_000)
+                    account.click()
+                else:
+                    raise Exception(f"Could not find account tile for {SSO_EMAIL} on Pick an account page")
+
+                print("[5] Waiting for app to load after SSO...")
+                time.sleep(5)
+
             else:
-                print("[4] SSO redirected without login page (session already active).")
-
-            # Step 4: Wait for app to fully load after SSO
-            time.sleep(3)
+                print("[4] SSO completed instantly (token silently reused).")
+                time.sleep(3)
 
             final_url = page.url
             print(f"\n[Result] Landed on  : {final_url}")
