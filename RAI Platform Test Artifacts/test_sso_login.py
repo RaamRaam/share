@@ -1,7 +1,7 @@
 """
 SSO Login Test — Azure AD (password-less, reuses browser session/cookies)
 
-Uses the user's existing Chrome profile so Microsoft SSO auto-authenticates
+Uses the user's existing Edge profile so Microsoft SSO auto-authenticates
 without requiring a password.
 
 Usage:
@@ -23,8 +23,8 @@ APP_URL = os.getenv("APP_URL")
 SSO_EMAIL = os.getenv("SSO_EMAIL")
 EXPECTED_HOME_URL = os.getenv("EXPECTED_HOME_URL")
 
-# Path to your Chrome user profile (reuses existing Microsoft session/cookies)
-CHROME_USER_DATA_DIR = str(Path.home() / "Library/Application Support/Google/Chrome")
+# Path to your Edge user profile (reuses existing Microsoft session/cookies)
+CHROME_USER_DATA_DIR = str(Path.home() / "Library/Application Support/Microsoft Edge")
 CHROME_PROFILE = "Default"  # Change to "Profile 1", "Profile 2" etc. if needed
 
 
@@ -36,10 +36,10 @@ def test_sso_login() -> None:
     print(f"{'='*55}")
 
     with sync_playwright() as p:
-        # Launch with persistent Chrome profile so Microsoft session is reused
+        # Launch with persistent Edge profile so Microsoft session is reused
         context = p.chromium.launch_persistent_context(
             user_data_dir=CHROME_USER_DATA_DIR,
-            channel="chrome",           # Use installed Chrome (not Chromium)
+            channel="msedge",           # Use installed Edge
             args=[f"--profile-directory={CHROME_PROFILE}"],
             headless=False,             # Must be headed to reuse real profile
             slow_mo=500,
