@@ -1,41 +1,22 @@
 """
-TestReporter — captures step-level results and writes an Excel report.
+TestReporter — captures step-level results and writes CSV reports.
 
-Excel output has two sheets:
-  • Summary — one row per test case  (TC#, scenario, steps, pass, fail, result, duration, error)
-  • Details — one row per step       (TC#, scenario, step#, description, result, error)
+Two CSV files are written:
+  • <name>_summary.csv — one row per test case  (TC#, scenario, steps, pass, fail, result, duration, error)
+  • <name>_details.csv — one row per step       (TC#, scenario, step#, description, result, error)
 
 Usage
 ─────
-    do = Do(page)
     reporter.start_test("TC-001", "Open app and verify home page")
     steps = [
-        do.open(APP_URL),
-        do.verify_url(APP_URL),
-        do.verify_visible("header", "h1"),
+        ("Go to the application URL",    lambda: go_to(page, APP_URL)),
+        ("Verify URL loaded correctly",  lambda: check_url(page, APP_URL)),
     ]
     return reporter.run_steps(steps)
 """
 
+import csv
 import time
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
-
-
-# ── Styles ───────────────────────────────────────────────────────────────────
-_HEADER_FILL = PatternFill("solid", fgColor="2E4057")
-_PASS_FILL   = PatternFill("solid", fgColor="C6EFCE")
-_FAIL_FILL   = PatternFill("solid", fgColor="FFC7CE")
-_ALT_FILL    = PatternFill("solid", fgColor="F2F2F2")
-_NO_FILL     = PatternFill()
-_HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
-_PASS_FONT   = Font(bold=True, color="276221")
-_FAIL_FONT   = Font(bold=True, color="9C0006")
-_THIN_BORDER = Border(
-    left=Side(style="thin"), right=Side(style="thin"),
-    top=Side(style="thin"), bottom=Side(style="thin"),
-)
 
 
 class TestReporter:
@@ -81,7 +62,7 @@ class TestReporter:
     def execute(self, description: str, action) -> bool:
         """
         Execute ONE step and log its result immediately.
-        Use inside a manual try/finally when steps are built at runtime (e.g. TC-007).
+        Use inside a manual try/finally when steps are built at runtime.
 
         Returns True on success, False on failure.
         """
@@ -121,77 +102,59 @@ class TestReporter:
             self.end_test()
         return all_passed
 
-    # ── Excel export ──────────────────────────────────────────────────────────
+    # ── CSV export ────────────────────────────────────────────────────────────
 
-    def to_excel(self, path: str = "test_results.xlsx") -> str:
-        wb = Workbook()
-        self._write_summary_sheet(wb)
-        self._write_details_sheet(wb)
-        wb.save(path)
-        print(f"\n✅  Report saved → {path}")
-        return path
+    def to_csv(self, base_path: str = "test_results") -> tuple[str, str]:
+        """
+        Write two CSV files:
+          <base_path>_summary.csv  — one row per test case
+          <base_path>_details.csv  — one row per step
 
-    # ── Private ───────────────────────────────────────────────────────────────
+        Returns (summary_path, details_path).
+        """
+        # Strip .csv extension if the caller included it
+        if base_path.endswith(".csv"):
+            base_path = base_path[:-4]
 
-    def _write_summary_sheet(self, wb: Workbook) -> None:
-        ws = wb.active
-        ws.title = "Summary"
-        headers    = ["TC #", "Scenario", "Total Steps", "Passed", "Failed",
-                      "Result", "Duration (s)", "Error"]
-        col_widths = [10, 45, 13, 10, 10, 10, 14, 50]
-        self._write_header_row(ws, headers, col_widths)
+        summary_path = f"{base_path}_summary.csv"
+        details_path = f"{base_path}_details.csv"
 
-        for row_idx, tc in enumerate(self._results, start=2):
-            steps   = tc["steps"]
-            passed  = sum(1 for s in steps if s["result"] == "PASS")
-            is_pass = tc["result"] == "PASS"
-            values  = [tc["tc_num"], tc["scenario"], len(steps), passed,
-                       len(steps) - passed, tc["result"],
-                       tc.get("duration", ""), tc["error"]]
-            for col_idx, val in enumerate(values, start=1):
-                cell = ws.cell(row=row_idx, column=col_idx, value=val)
-                cell.border    = _THIN_BORDER
-                cell.alignment = Alignment(wrap_text=True, vertical="center")
-                if col_idx == 6:
-                    cell.fill = _PASS_FILL if is_pass else _FAIL_FILL
-                    cell.font = _PASS_FONT if is_pass else _FAIL_FONT
-                else:
-                    cell.fill = _ALT_FILL if row_idx % 2 == 0 else _NO_FILL
+        # Summary
+        with open(summary_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["TC #", "Scenario", "Total Steps", "Passed",
+                             "Failed", "Result", "Duration (s)", "Error"])
+            for tc in self._results:
+                steps  = tc["steps"]
+                passed = sum(1 for s in steps if s["result"] == "PASS")
+                writer.writerow([
+                    tc["tc_num"],
+                    tc["scenario"],
+                    len(steps),
+                    passed,
+                    len(steps) - passed,
+                    tc["result"],
+                    tc.get("duration", ""),
+                    tc["error"],
+                ])
 
-        ws.freeze_panes = "A2"
+        # Details
+        with open(details_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["TC #", "Scenario", "Step #",
+                             "Step Description", "Result", "Error"])
+            for tc in self._results:
+                for step in tc["steps"]:
+                    writer.writerow([
+                        tc["tc_num"],
+                        tc["scenario"],
+                        step["step_num"],
+                        step["description"],
+                        step["result"],
+                        step["error"],
+                    ])
 
-    def _write_details_sheet(self, wb: Workbook) -> None:
-        ws = wb.create_sheet("Details")
-        headers    = ["TC #", "Scenario", "Step #", "Step Description", "Result", "Error"]
-        col_widths = [10, 40, 8, 60, 10, 50]
-        self._write_header_row(ws, headers, col_widths)
-
-        row_idx = 2
-        for tc in self._results:
-            for step in tc["steps"]:
-                is_pass = step["result"] == "PASS"
-                values  = [tc["tc_num"], tc["scenario"], step["step_num"],
-                           step["description"], step["result"], step["error"]]
-                for col_idx, val in enumerate(values, start=1):
-                    cell = ws.cell(row=row_idx, column=col_idx, value=val)
-                    cell.border    = _THIN_BORDER
-                    cell.alignment = Alignment(wrap_text=True, vertical="center")
-                    if col_idx == 5:
-                        cell.fill = _PASS_FILL if is_pass else _FAIL_FILL
-                        cell.font = _PASS_FONT if is_pass else _FAIL_FONT
-                    else:
-                        cell.fill = _ALT_FILL if row_idx % 2 == 0 else _NO_FILL
-                row_idx += 1
-
-        ws.freeze_panes = "A2"
-
-    @staticmethod
-    def _write_header_row(ws, headers: list[str], col_widths: list[int]) -> None:
-        for col_idx, (hdr, width) in enumerate(zip(headers, col_widths), start=1):
-            cell = ws.cell(row=1, column=col_idx, value=hdr)
-            cell.font      = _HEADER_FONT
-            cell.fill      = _HEADER_FILL
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-            cell.border    = _THIN_BORDER
-            ws.column_dimensions[get_column_letter(col_idx)].width = width
-        ws.row_dimensions[1].height = 20
+        print(f"\n✅  Reports saved:")
+        print(f"    Summary → {summary_path}")
+        print(f"    Details → {details_path}")
+        return summary_path, details_path

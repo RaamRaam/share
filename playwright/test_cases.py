@@ -15,7 +15,7 @@ Example:
         steps = [
             ("Go to search page",           lambda: go_to(page, APP_URL + "/search")),
             ("Type keyword in search box",  lambda: fill_input(page, "#search", "data risk")),
-            ("Click the Search button",     lambda: click_button(page, "Search")),
+            ("Click the Search button",     lambda: click(page, "Search")),
             ("Verify result is shown",      lambda: check_text(page, ".results", "data risk")),
         ]
         return reporter.run_steps(steps)
@@ -27,7 +27,7 @@ AVAILABLE ACTIONS
   wait_for_url(page, "**pattern**")         wait until URL matches
   check_url(page, "/expected")              assert URL contains text
 
-  click_button(page, "Save")                click by visible text
+  click(page, "Save")                click by visible text
   click_element(page, "#selector")          click by CSS selector
   click_all(page, ".selector")              click every matching element
   click_checkbox(page, "#checkbox")         tick a checkbox or radio
@@ -47,17 +47,22 @@ AVAILABLE ACTIONS
   check_title(page, "My App")               assert page title
 
   wait_for(page, ".selector")               wait for element to appear
+
+  search_input(page, "Search...", "text")   find box by placeholder, type, press Enter
+  get_row_text(page, "some cell text")      find table row → return all cell text
+  click_row_icon(page, "some cell text", 0) find table row → click icon by index
 ──────────────────────────────────────────────────────────────────
 """
 
 from config import APP_URL, SSO_EMAIL
 from actions import (
     go_to, wait_for_page, wait_for_url, check_url,
-    click_button, click_element, click_all, click_checkbox,
+    click, click_element, click_all, click_checkbox,
     fill_input, fill_all, clear_input, select_dropdown, multi_select,
     get_text, get_attribute,
     check_visible, check_text, check_count, check_title,
     wait_for,
+    search_input, get_row_text, click_row_icon,
 )
 
 
@@ -86,7 +91,7 @@ def tc_002_login(page, reporter):
     reporter.start_test("TC-002", "Login via Microsoft SSO")
     steps = [
         ("Click the Login button",
-         lambda: click_button(page, "Login")),
+         lambda: click(page, "Login")),
 
         ("Wait for Microsoft login page",
          lambda: wait_for_url(page, "**login.microsoftonline.com**", timeout=15_000)),
@@ -110,7 +115,7 @@ def tc_003_navigate_to_risk_assessment(page, reporter):
     reporter.start_test("TC-003", "Navigate to Comprehensive Risk Assessment")
     steps = [
         ("Click Comprehensive Risk Assessment link",
-         lambda: click_button(page, "Comprehensive Risk Assessment")),
+         lambda: click(page, "Comprehensive Risk Assessment")),
 
         ("Verify assessment page loaded",
          lambda: check_url(page, "assessment")),
@@ -203,7 +208,7 @@ def tc_008_save_assessment(page, reporter):
     reporter.start_test("TC-008", "Save the completed assessment")
     steps = [
         ("Click the Save button",
-         lambda: click_button(page, "Save")),
+         lambda: click(page, "Save")),
 
         ("Wait for save to complete",
          lambda: wait_for_page(page)),

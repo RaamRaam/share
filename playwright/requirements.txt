@@ -1,3 +1,2 @@
 playwright        # browser automation
 python-dotenv     # loads .env file for APP_URL and SSO_EMAIL
-openpyxl          # writes Excel test reports

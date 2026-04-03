@@ -40,15 +40,41 @@ def check_url(page, expected: str) -> bool:
 
 # ── Clicking ──────────────────────────────────────────────────────────────────
 
-def click_button(page, text: str) -> bool:
-    """Click the first button or link whose visible text matches (case-insensitive)."""
-    log(f"click_button '{text}'")
-    el = page.locator(
-        f"xpath=//*[translate(normalize-space(text()),"
-        f"'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='{text.lower()}']"
-    )
-    assert el.count() > 0, f"No element found with text '{text}'"
-    el.first.click()
+def click(page, text: str, *, nth: int = 0) -> bool:
+    """
+    Click any element — button, link, div, card, or container — by visible text.
+
+    Tries three strategies in order:
+      1. Exact text match on any element  (button, a, span, label, div ...)
+      2. <p> tag containing the text → clicks its parent container  (cards, list items)
+      3. Any element whose full inner text contains the search text  (nested content)
+    """
+    t   = text.lower()
+    _TX = ("translate(normalize-space(text()),"
+           "'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')")
+    _TC = ("translate(normalize-space(.),"
+           "'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')")
+
+    log(f"click '{text}' nth={nth}")
+
+    # 1 — exact own-text match
+    exact = page.locator(f"xpath=//*[{_TX}='{t}']").nth(nth)
+    if exact.count() and exact.is_visible():
+        exact.click()
+        return True
+
+    # 2 — <p> contains text → click parent container
+    p_tag = page.locator(f"xpath=//p[contains({_TX},'{t}')]").nth(nth)
+    if p_tag.count() and p_tag.is_visible():
+        p_tag.locator("xpath=..").click()
+        return True
+
+    # 3 — any element whose full subtree contains the text
+    broad = page.locator(
+        f"xpath=//*[contains({_TC},'{t}')][not(self::html)][not(self::body)]"
+    ).nth(nth)
+    assert broad.count() > 0, f"No element found containing text '{text}'"
+    broad.click()
     return True
 
 def click_element(page, selector: str, *, nth: int = 0) -> bool:
@@ -183,4 +209,71 @@ def wait_for(page, selector: str, *, timeout: int = 8_000) -> bool:
     """Wait until an element appears on the page."""
     log(f"wait_for '{selector}'")
     page.locator(selector).first.wait_for(state="visible", timeout=timeout)
+    return True
+
+
+# ── Search & Table ────────────────────────────────────────────────────────────
+
+def search_input(page, placeholder: str, value: str) -> bool:
+    """
+    Find a search box by its placeholder text, type a value, and press Enter.
+
+    Example:
+        search_input(page, "Search by name...", "Data Risk")
+    """
+    log(f"search_input placeholder='{placeholder}' value='{value}'")
+    el = page.get_by_placeholder(placeholder)
+    el.wait_for(state="visible")
+    el.fill(value)
+    el.press("Enter")
+    return True
+
+
+def get_row_text(page, search_text: str) -> str:
+    """
+    Find the first table row (<tr>) that contains search_text in any cell (<td>),
+    and return the full text of that row (all cells joined by ' | ').
+
+    Raises AssertionError if no matching row is found.
+    """
+    log(f"get_row_text search='{search_text}'")
+    t = search_text.lower()
+    _TX = ("translate(normalize-space(.),"
+           "'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')")
+    row = page.locator(
+        f"xpath=//tr[td[contains({_TX},'{t}')]]"
+    ).first
+    assert row.count() > 0, f"No table row found containing '{search_text}'"
+    cells = row.locator("td").all()
+    text  = " | ".join(c.inner_text().strip() for c in cells)
+    log(f"  → '{text}'")
+    return text
+
+
+def click_row_icon(page, search_text: str, icon_index: int = 0) -> bool:
+    """
+    Find the first table row containing search_text, then click the icon
+    inside that row at the given index (0 = first icon, 1 = second, etc.).
+
+    Icons are matched as: button, [role='button'], svg, img, i, or any
+    element with an aria-label inside the row's cells.
+
+    Raises AssertionError if the row or icon is not found.
+    """
+    log(f"click_row_icon search='{search_text}' icon_index={icon_index}")
+    t = search_text.lower()
+    _TX = ("translate(normalize-space(.),"
+           "'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')")
+    row = page.locator(
+        f"xpath=//tr[td[contains({_TX},'{t}')]]"
+    ).first
+    assert row.count() > 0, f"No table row found containing '{search_text}'"
+
+    # Try buttons / role=button first, then fall back to svg / img / i icons
+    icon = row.locator(
+        "button, [role='button'], [aria-label], svg, img, i"
+    ).nth(icon_index)
+    assert icon.count() > 0, \
+        f"No icon at index {icon_index} in row containing '{search_text}'"
+    icon.click()
     return True
