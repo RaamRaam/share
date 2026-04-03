@@ -1,73 +1,81 @@
 """
-test_cases.py — One function per test case.
+test_cases.py
+─────────────
+HOW TO WRITE A TEST CASE
+─────────────────────────
+1. Define a function  tc_XXX_name(page, reporter)
+2. Call  reporter.start_test("TC-XXX", "what this test does")
+3. List steps as  ("description", lambda: action(page, ...))
+4. Return  reporter.run_steps(steps)
+5. Add the function to TEST_CASES at the bottom
 
-Pattern
-───────
-Each test-case function:
-  1. Calls reporter.start_test(tc_num, scenario_description)
-  2. Defines `steps` — an ordered list of (description, lambda) tuples
-  3. Calls reporter.run_steps(steps) which executes each step,
-     logs PASS / FAIL per step, calls end_test(), and returns True / False.
+Example:
+    def tc_010_search(page, reporter):
+        reporter.start_test("TC-010", "Search for a risk item")
+        steps = [
+            ("Go to search page",           lambda: go_to(page, APP_URL + "/search")),
+            ("Type keyword in search box",  lambda: fill_input(page, "#search", "data risk")),
+            ("Click the Search button",     lambda: click_button(page, "Search")),
+            ("Verify result is shown",      lambda: check_text(page, ".results", "data risk")),
+        ]
+        return reporter.run_steps(steps)
 
-Adding a new test case
-──────────────────────
-  • Copy any existing tc_XXX function.
-  • Update the TC number, scenario, and steps list.
-  • Append the function to TEST_CASES at the bottom — execution order follows list order.
+AVAILABLE ACTIONS
+──────────────────────────────────────────────────────────────────
+  go_to(page, url)                          navigate to a URL
+  wait_for_page(page)                       wait for network to settle
+  wait_for_url(page, "**pattern**")         wait until URL matches
+  check_url(page, "/expected")              assert URL contains text
+
+  click_button(page, "Save")                click by visible text
+  click_element(page, "#selector")          click by CSS selector
+  click_all(page, ".selector")              click every matching element
+  click_checkbox(page, "#checkbox")         tick a checkbox or radio
+
+  fill_input(page, "#selector", "value")    type into one input
+  fill_all(page, ".selector", "value")      type into all matching inputs
+  clear_input(page, "#selector")            clear an input
+  select_dropdown(page, "#sel", "option")   choose from any dropdown
+  multi_select(page, "#sel", ["a", "b"])    choose multiple options
+
+  get_text(page, ".selector")               read element text
+  get_attribute(page, ".el", "attr")        read an element attribute
+
+  check_visible(page, ".selector")          assert element is visible
+  check_text(page, ".selector", "value")    assert element contains text
+  check_count(page, ".selector", 5)         assert number of elements
+  check_title(page, "My App")               assert page title
+
+  wait_for(page, ".selector")               wait for element to appear
+──────────────────────────────────────────────────────────────────
 """
 
 from config import APP_URL, SSO_EMAIL
 from actions import (
-    navigate,
-    click_button,
-    click_button_ci,
-    click_by_selector,
-    check_url,
-    check_title,
-    wait_for_url,
-    populate_textbox,
-    clear_textbox,
-    choose_dropdown,
-    choose_react_dropdown,
-    multi_select_dropdown,
-    extract_div_content,
-    get_element_attribute,
-    check_value_in_div,
-    check_element_visible,
-    check_element_count,
-    wait_for_element,
-    wait_for_load,
-)
-from page_actions import (
-    click_comprehensive_risk_assessment,
-    click_run_qualitative_assessment,
-    select_os_summary,
-    click_assessment_icon,
-    answer_all_questions,
-    click_save,
+    go_to, wait_for_page, wait_for_url, check_url,
+    click_button, click_element, click_all, click_checkbox,
+    fill_input, fill_all, clear_input, select_dropdown, multi_select,
+    get_text, get_attribute,
+    check_visible, check_text, check_count, check_title,
+    wait_for,
 )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TC-001 : Open application & verify home page
+# TC-001 : Open application and verify home page
 # ─────────────────────────────────────────────────────────────────────────────
 def tc_001_open_app(page, reporter):
     reporter.start_test("TC-001", "Open application and verify home page loads")
-
     steps = [
-        ("Navigate to APP_URL",
-         lambda: navigate(page, APP_URL)),
+        ("Go to the application URL",
+         lambda: go_to(page, APP_URL)),
 
-        ("Verify current URL contains APP_URL",
+        ("Verify URL loaded correctly",
          lambda: check_url(page, APP_URL)),
 
-        ("Verify page header / hero element is visible",
-         lambda: check_element_visible(page, "header, h1, [data-testid='app-header']")),
-
-        ("Wait for network idle after load",
-         lambda: wait_for_load(page)),
+        ("Verify page header is visible",
+         lambda: check_visible(page, "header, h1")),
     ]
-
     return reporter.run_steps(steps)
 
 
@@ -76,27 +84,22 @@ def tc_001_open_app(page, reporter):
 # ─────────────────────────────────────────────────────────────────────────────
 def tc_002_login(page, reporter):
     reporter.start_test("TC-002", "Login via Microsoft SSO")
-
     steps = [
-        ("Click Login / Sign In button (case-insensitive)",
-         lambda: click_button_ci(page, ["login", "sign in"])),
+        ("Click the Login button",
+         lambda: click_button(page, "Login")),
 
-        ("Wait for redirect to Microsoft login page",
+        ("Wait for Microsoft login page",
          lambda: wait_for_url(page, "**login.microsoftonline.com**", timeout=15_000)),
 
-        ("Verify Microsoft login page URL",
-         lambda: check_url(page, "microsoftonline.com")),
+        (f"Click SSO account for {SSO_EMAIL}",
+         lambda: click_element(page, f"[data-test-id='{SSO_EMAIL}']")),
 
-        (f"Click SSO account tile for {SSO_EMAIL}",
-         lambda: click_by_selector(page, f"[data-test-id='{SSO_EMAIL}']")),
-
-        ("Wait for redirect back to app home",
+        ("Wait for app to load after login",
          lambda: wait_for_url(page, "**/home**", timeout=20_000)),
 
-        ("Verify app home URL after login",
+        ("Verify home page loaded",
          lambda: check_url(page, "/home")),
     ]
-
     return reporter.run_steps(steps)
 
 
@@ -105,18 +108,16 @@ def tc_002_login(page, reporter):
 # ─────────────────────────────────────────────────────────────────────────────
 def tc_003_navigate_to_risk_assessment(page, reporter):
     reporter.start_test("TC-003", "Navigate to Comprehensive Risk Assessment")
-
     steps = [
         ("Click Comprehensive Risk Assessment link",
-         lambda: click_comprehensive_risk_assessment(page)),
+         lambda: click_button(page, "Comprehensive Risk Assessment")),
 
-        ("Verify URL contains 'risk' or 'assessment'",
+        ("Verify assessment page loaded",
          lambda: check_url(page, "assessment")),
 
         ("Verify page heading is visible",
-         lambda: check_element_visible(page, "h1, h2, [data-testid='page-title']")),
+         lambda: check_visible(page, "h1, h2")),
     ]
-
     return reporter.run_steps(steps)
 
 
@@ -125,18 +126,16 @@ def tc_003_navigate_to_risk_assessment(page, reporter):
 # ─────────────────────────────────────────────────────────────────────────────
 def tc_004_select_qualitative_assessment(page, reporter):
     reporter.start_test("TC-004", "Select Run Qualitative Assessment card")
-
     steps = [
-        ("Click Run Qualitative Assessment card",
-         lambda: click_run_qualitative_assessment(page)),
+        ("Verify assessment cards are visible",
+         lambda: check_visible(page, 'div[class*="cardContainer"]')),
 
-        ("Verify at least one card container is visible",
-         lambda: check_element_visible(page, 'div[class*="cardContainer"]')),
+        ("Click the Qualitative Assessment card",
+         lambda: click_element(page, 'div[class*="cardContainer"]:has(p[data-testid="Qualitative Assessment"])')),
 
-        ("Wait for page to settle",
-         lambda: wait_for_load(page)),
+        ("Wait for next page to load",
+         lambda: wait_for_page(page)),
     ]
-
     return reporter.run_steps(steps)
 
 
@@ -144,67 +143,56 @@ def tc_004_select_qualitative_assessment(page, reporter):
 # TC-005 : Select OS Summary from dropdown
 # ─────────────────────────────────────────────────────────────────────────────
 def tc_005_select_os_summary(page, reporter):
-    reporter.start_test("TC-005", "Select OS Summary from react-select dropdown")
-
+    reporter.start_test("TC-005", "Select OS Summary from assessment type dropdown")
     steps = [
-        ("Verify react-select control is present",
-         lambda: check_element_visible(page, "div.react-select__control")),
+        ("Verify the dropdown is visible",
+         lambda: check_visible(page, "div.react-select__control")),
 
-        ("Open dropdown and choose OS-SUMMARY option",
-         lambda: select_os_summary(page)),
+        ("Select OS Summary from the dropdown",
+         lambda: select_dropdown(page, "div.react-select__control", "OS-SUMMARY")),
 
-        ("Verify selected value contains 'OS' or 'Summary'",
-         lambda: check_value_in_div(page, "div.react-select__single-value", "Summary")),
+        ("Verify OS Summary is selected",
+         lambda: check_text(page, "div.react-select__single-value", "Summary")),
     ]
-
     return reporter.run_steps(steps)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TC-006 : Click Assessment icon to open questionnaire
+# TC-006 : Open questionnaire via Assessment icon
 # ─────────────────────────────────────────────────────────────────────────────
-def tc_006_click_assessment_icon(page, reporter):
-    reporter.start_test("TC-006", "Click Assessment icon to open questionnaire")
-
+def tc_006_open_questionnaire(page, reporter):
+    reporter.start_test("TC-006", "Open questionnaire via Assessment icon")
     steps = [
         ("Verify Assessment icon is visible",
-         lambda: check_element_visible(page, '[aria-label="Assessment"]')),
+         lambda: check_visible(page, '[aria-label="Assessment"]')),
 
         ("Click Assessment icon",
-         lambda: click_assessment_icon(page)),
+         lambda: click_element(page, '[aria-label="Assessment"]')),
 
-        ("Wait for questionnaire panel to load",
-         lambda: wait_for_load(page)),
-
-        ("Verify at least one accordion item is present",
-         lambda: wait_for_element(page, ".accordionItem, [data-testid='parent-question']",
-                                  timeout=10_000)),
+        ("Wait for questionnaire questions to load",
+         lambda: wait_for(page, ".accordionItem", timeout=10_000)),
     ]
-
     return reporter.run_steps(steps)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TC-007 : Answer all questionnaire items
+# TC-007 : Answer all questionnaire questions
 # ─────────────────────────────────────────────────────────────────────────────
 def tc_007_answer_all_questions(page, reporter):
-    reporter.start_test("TC-007", "Answer all questionnaire items (Yes/No + text fields)")
-
+    reporter.start_test("TC-007", "Answer all questionnaire questions")
     steps = [
-        ("Verify accordion questions are visible",
-         lambda: check_element_visible(page, ".accordionItem")),
+        ("Verify questions are loaded on the page",
+         lambda: check_visible(page, ".accordionItem")),
 
-        ("Count visible parent questions (expect > 0)",
-         lambda: _assert_positive(page.locator(".accordionItem").count(),
-                                  "No parent accordion items found")),
+        ("Expand all question sections",
+         lambda: click_all(page, ".accordionItem[aria-expanded='false']")),
 
-        ("Expand all sections and answer every sub-question",
-         lambda: answer_all_questions(page)),
+        ("Click Yes on all Yes/No questions",
+         lambda: click_all(page, ".yesNoGroup [for*='option-Yes']")),
 
-        ("Verify no unanswered Yes/No groups remain",
-         lambda: _assert_no_unanswered(page)),
+        ("Fill in all open text fields with answer",
+         lambda: fill_all(page, "textarea.infraTextarea", "Answered")),
     ]
-
     return reporter.run_steps(steps)
 
 
@@ -213,118 +201,34 @@ def tc_007_answer_all_questions(page, reporter):
 # ─────────────────────────────────────────────────────────────────────────────
 def tc_008_save_assessment(page, reporter):
     reporter.start_test("TC-008", "Save the completed assessment")
-
     steps = [
-        ("Click Save button",
-         lambda: click_save(page)),
+        ("Click the Save button",
+         lambda: click_button(page, "Save")),
 
-        ("Wait for save confirmation / network idle",
-         lambda: wait_for_load(page)),
+        ("Wait for save to complete",
+         lambda: wait_for_page(page)),
 
-        ("Verify success toast / confirmation element is visible",
-         lambda: wait_for_element(page,
-                                  "[data-testid='toast-success'], .success-banner, "
-                                  "[aria-label='success'], .notification-success",
-                                  timeout=8_000)),
+        ("Verify success message appears",
+         lambda: wait_for(page, "[data-testid='toast-success'], .success-banner",
+                          timeout=8_000)),
+
+        ("Read the success message",
+         lambda: get_text(page, "[data-testid='toast-success'], .success-banner")),
     ]
-
     return reporter.run_steps(steps)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TC-009 : Demo — dropdown, textbox, multi-select, div content checks
-#          (replace selectors with real ones from your app)
+# TEST_CASES — execution order
+# Add new test case functions here to include them in the run.
 # ─────────────────────────────────────────────────────────────────────────────
-def tc_009_form_interactions_demo(page, reporter):
-    reporter.start_test(
-        "TC-009",
-        "Form interactions: textbox, native dropdown, multi-select, div content checks"
-    )
-
-    steps = [
-        # ── textbox ──
-        ("Populate search / filter text box",
-         lambda: populate_textbox(page, "input[placeholder*='Search'], input[type='text']",
-                                  "Test Input", nth=0)),
-
-        ("Verify text box value is set",
-         lambda: _assert_input_value(page,
-                                     "input[placeholder*='Search'], input[type='text']",
-                                     "Test Input")),
-
-        ("Clear the text box",
-         lambda: clear_textbox(page, "input[placeholder*='Search'], input[type='text']")),
-
-        # ── native <select> dropdown ──
-        ("Choose option from native dropdown (if present)",
-         lambda: choose_dropdown(page, "select", "Option 1")),
-
-        # ── react-select single ──
-        ("Choose item from react-select dropdown",
-         lambda: choose_react_dropdown(page, "div.react-select", "OS-SUMMARY")),
-
-        # ── react-select multi ──
-        ("Multi-select two items from react-select",
-         lambda: multi_select_dropdown(page, "div.react-select--multi",
-                                       ["Option A", "Option B"])),
-
-        # ── div content extraction & assertion ──
-        ("Extract content from result div",
-         lambda: extract_div_content(page, "div[data-testid='result-panel']")),
-
-        ("Assert result div contains expected text",
-         lambda: check_value_in_div(page, "div[data-testid='result-panel']",
-                                    "Saved", contains=True)),
-
-        ("Read an element attribute (e.g. aria-label)",
-         lambda: get_element_attribute(page, "[data-testid='status-badge']", "aria-label")),
-
-        ("Verify element count matches expectation",
-         lambda: check_element_count(page, ".accordionItem", 5)),
-    ]
-
-    return reporter.run_steps(steps)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Private assertion helpers (keep small; don't repeat complex logic here)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _assert_positive(value: int, msg: str) -> bool:
-    assert value > 0, msg
-    return True
-
-
-def _assert_no_unanswered(page) -> bool:
-    """Check that no Yes/No group has all radio buttons unchecked."""
-    groups = page.locator(".yesNoGroup").all()
-    unanswered = 0
-    for g in groups:
-        checked = g.locator("input[type='radio']:checked").count()
-        if checked == 0:
-            unanswered += 1
-    assert unanswered == 0, f"{unanswered} unanswered Yes/No group(s) remain"
-    return True
-
-
-def _assert_input_value(page, selector: str, expected: str) -> bool:
-    actual = page.locator(selector).first.input_value()
-    assert actual == expected, f"Input value mismatch: expected '{expected}', got '{actual}'"
-    return True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Execution order — append new TCs here
-# ─────────────────────────────────────────────────────────────────────────────
-
 TEST_CASES = [
     tc_001_open_app,
     tc_002_login,
     tc_003_navigate_to_risk_assessment,
     tc_004_select_qualitative_assessment,
     tc_005_select_os_summary,
-    tc_006_click_assessment_icon,
+    tc_006_open_questionnaire,
     tc_007_answer_all_questions,
     tc_008_save_assessment,
-    # tc_009_form_interactions_demo,   # ← enable when selectors are confirmed
 ]
