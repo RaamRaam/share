@@ -1,0 +1,24 @@
+TC ID,Scenario,Step #,Description,Status,Duration (s),Error
+TC001,Open app and verify home page,1,Navigate to the application URL,PASS,1.84,
+TC001,Open app and verify home page,2,Assert URL loaded correctly,PASS,0.11,
+TC001,Open app and verify home page,3,Assert page header is visible,PASS,0.17,
+TC002,Login via SSO and land on dashboard,1,Open application,PASS,1.92,
+TC002,Login via SSO and land on dashboard,2,Click the Sign In button,PASS,0.34,
+TC002,Login via SSO and land on dashboard,3,Wait for Microsoft login page,PASS,4.21,
+TC002,Login via SSO and land on dashboard,4,Click SSO account tile,PASS,0.55,
+TC002,Login via SSO and land on dashboard,5,Wait for dashboard to load,PASS,5.45,
+TC003,Fill new-record form and submit,1,Open the New Record form,PASS,0.41,
+TC003,Fill new-record form and submit,2,Fill Title field by placeholder,PASS,0.28,
+TC003,Fill new-record form and submit,3,Fill Description field by label text,PASS,0.31,
+TC003,Fill new-record form and submit,4,Fill Owner with SSO email from env,PASS,0.29,
+TC003,Fill new-record form and submit,5,Submit form and assert redirect,PASS,5.54,
+TC004,Search for a record and read its status,1,Search for the new record,PASS,1.77,
+TC004,Search for a record and read its status,2,Read Status value next to its label,FAIL,2.01,Could not find adjacent text for label 'Status'
+TC004,Search for a record and read its status,3,Read Owner value next to its label,FAIL,0.31,Skipped — previous step failed
+TC005,Edit a record via table action icon,1,Go to Records list page,PASS,1.14,
+TC005,Edit a record via table action icon,2,Click the first icon (Edit) in the matching row,PASS,0.88,
+TC005,Edit a record via table action icon,3,Wait for edit page to load,PASS,3.2,
+TC006,Delete a record via named icon in table,1,Click the Delete icon by aria-label,FAIL,2.15,No icon with name 'delete' in row containing 'Automation Test Record'
+TC006,Delete a record via named icon in table,2,Confirm deletion in the dialog,FAIL,0.0,Skipped — previous step failed
+TC007,Demo: sweep cursor to show automation,1,Open the app,PASS,1.04,
+TC007,Demo: sweep cursor to show automation,2,Sweep cursor across the page,PASS,2.01,

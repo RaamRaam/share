@@ -1,0 +1,8 @@
+TC ID,Scenario,Module,Total Steps,Passed,Failed,Status,Duration (s),Error
+TC001,Open app and verify home page,home,3,3,0,PASS,3.12,
+TC002,Login via SSO and land on dashboard,auth,5,5,0,PASS,12.47,
+TC003,Fill new-record form and submit,records,5,5,0,PASS,6.83,
+TC004,Search for a record and read its status,records,3,1,2,FAIL,4.09,Could not find adjacent text for label 'Status'
+TC005,Edit a record via table action icon,records,3,3,0,PASS,5.22,
+TC006,Delete a record via named icon in table,records,2,0,2,FAIL,2.15,No icon with name 'delete' in row containing 'Automation Test Record'
+TC007,Demo: sweep cursor to show automation,,2,2,0,PASS,3.05,

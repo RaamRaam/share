@@ -1,0 +1,160 @@
+metadata:
+  source: test_cases.xlsx
+  sheet: Test Cases
+  total: 7
+test_cases:
+- id: TC001
+  scenario: Open app and verify home page
+  module: home
+  steps:
+  - step: 1
+    function: go_to
+    params:
+      url: ${APP_URL}
+    description: Navigate to the application URL
+  - step: 2
+    function: check_url
+    params:
+      expected: ${APP_URL}
+    description: Assert URL loaded correctly
+  - step: 3
+    function: check_visible
+    params:
+      selector: header, h1
+    description: Assert page header is visible
+- id: TC002
+  scenario: Login via SSO and land on dashboard
+  module: auth
+  steps:
+  - step: 1
+    function: go_to
+    params:
+      url: ${APP_URL}
+    description: Open application
+  - step: 2
+    function: click
+    params:
+      text: Sign In
+      exact: false
+    description: Click the Sign In button
+  - step: 3
+    function: wait_for_url
+    params:
+      pattern: '**login.microsoftonline.com**'
+      timeout: 15000
+    description: Wait for Microsoft login page
+  - step: 4
+    function: click
+    params:
+      text: ${SSO_EMAIL}
+      exact: false
+    description: Click SSO account tile
+  - step: 5
+    function: wait_for_url
+    params:
+      pattern: '**/dashboard**'
+      timeout: 20000
+    description: Wait for dashboard to load
+    expected: /dashboard
+- id: TC003
+  scenario: Fill new-record form and submit
+  module: records
+  steps:
+  - step: 1
+    function: click
+    params:
+      text: New Record
+    description: Open the New Record form
+  - step: 2
+    function: fill_input
+    params:
+      placeholder: Enter title
+      value: Automation Test Record
+    description: Fill Title field by placeholder
+  - step: 3
+    function: fill_input
+    params:
+      label: Description
+      value: Created by automation
+    description: Fill Description field by label text
+  - step: 4
+    function: fill_input
+    params:
+      placeholder: Owner email
+      value: ${SSO_EMAIL}
+    description: Fill Owner with SSO email from env
+  - step: 5
+    function: click
+    params:
+      text: Submit
+      validate_url: /records
+    description: Submit form and assert redirect
+    expected: /records
+- id: TC004
+  scenario: Search for a record and read its status
+  module: records
+  steps:
+  - step: 1
+    function: search_input
+    params:
+      placeholder: Search records…
+      value: Automation Test
+    description: Search for the new record
+  - step: 2
+    function: get_adjacent_text
+    params:
+      label: Status
+    description: Read Status value next to its label
+    expected: Active
+  - step: 3
+    function: get_adjacent_text
+    params:
+      label: Owner
+    description: Read Owner value next to its label
+- id: TC005
+  scenario: Edit a record via table action icon
+  module: records
+  steps:
+  - step: 1
+    function: click
+    params:
+      text: Records
+    description: Go to Records list page
+  - step: 2
+    function: click_row_icon
+    params:
+      search_text: Automation Test Record
+      icon_index: 0
+    description: Click the first icon (Edit) in the matching row
+  - step: 3
+    function: wait_for_page
+    description: Wait for edit page to load
+- id: TC006
+  scenario: Delete a record via named icon in table
+  module: records
+  steps:
+  - step: 1
+    function: click_row_icon
+    params:
+      search_text: Automation Test Record
+      icon_name: delete
+    description: Click the Delete icon by aria-label
+  - step: 2
+    function: click
+    params:
+      text: Confirm
+    description: Confirm deletion in the dialog
+- id: TC007
+  scenario: 'Demo: sweep cursor to show automation'
+  steps:
+  - step: 1
+    function: go_to
+    params:
+      url: ${APP_URL}
+    description: Open the app
+  - step: 2
+    function: demo_mouse_move
+    params:
+      steps: 15
+      duration_ms: 2000
+    description: Sweep cursor across the page

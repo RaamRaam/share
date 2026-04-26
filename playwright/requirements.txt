@@ -1,2 +1,4 @@
 playwright        # browser automation
-python-dotenv     # loads .env file for APP_URL and SSO_EMAIL
+python-dotenv     # loads .env for APP_URL and SSO_EMAIL
+openpyxl          # read/write Excel .xlsx files
+pyyaml            # parse and write YAML

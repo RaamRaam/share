@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import openpyxl; print\\(''openpyxl ok''\\)\")",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 -c \"import actions; print\\(''actions.py OK — exports:'', [x for x in dir\\(actions\\) if not x.startswith\\(''_''\\)]\\)\")",
+      "Bash(ls -lt *.py)",
+      "Bash(grep -h \"^import\\\\|^from\" /Users/raamraam/Downloads/playwright/*.py)",
+      "Bash(grep -rn \"from datetime\" /Users/raamraam/Downloads/playwright/*.py)",
+      "Bash(python3 -c \"import playwright; print\\(playwright.__version__\\)\")",
+      "Bash(python3 -m playwright --version)",
+      "Bash(python3 -c \"import openpyxl; print\\(''openpyxl'', openpyxl.__version__\\)\")",
+      "Bash(python3 -c \"import dotenv; print\\(''python-dotenv'', dotenv.__version__\\)\")",
+      "Bash(code --install-extension GrapeCity.gc-excelviewer)",
+      "Bash(python scripts/create_sample_excel.py)"
+    ]
+  }
+}
